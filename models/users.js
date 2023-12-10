@@ -16,19 +16,21 @@ module.exports = (sequelize, DataTypes) => {
   users.init({
     username: {
       allowNull: false,
-      type: DataTypes.STRING
+      type: DataTypes.STRING,
+      validate: {
+        len: [3, 255],
+      }
     },
     email: {
       allowNull: false,
-      type: DataTypes.STRING
+      type: DataTypes.STRING,
+      validate: {
+        isEmail: true,
+      }
     },
     password: {
       allowNull: false,
       type: DataTypes.STRING
-    },
-    phoneNumber: {
-      allowNull: false,
-      type: DataTypes.INTEGER
     },
     isActive: {
       allowNull: false,
@@ -48,6 +50,13 @@ module.exports = (sequelize, DataTypes) => {
   }, {
     sequelize,
     modelName: 'users',
+  });
+
+  users.beforeSave('dcryptPass', (data, _) => {
+    const bcrypt = require('bcrypt');
+    let plainPass = data.getDataValue('password');
+    let ecryptPass = bcrypt.hashSync(plainPass, 10);
+    data.setDataValue('password', ecryptPass);
   });
   return users;
 };
