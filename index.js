@@ -55,6 +55,7 @@ app.post('/login', async (req, res) => {
     if (check) {
         const token = jwt.sign({ uuid: userL.uuid }, 'ASXCVBNMPOJHGCXZWERTYUUHJBLKJHGED'); // jsonwebtoken
 
+
         res.cookie('X-Access-Token', token, { maxAge: 7776000000, signed: true, path: '/', httpOnly: true }); // cookies
 
         return res.status(201).send({ "X-Access-Token": token, });
