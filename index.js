@@ -15,10 +15,15 @@ app.use(cookieParser('QWERTYUIOPLKJHGFDSAZXCVBNM'));
 
 
 //  RIGISTER API
-app.post('/register', (req, res) => {
+app.post('/register', async (req, res) => {
     const { users } = require('./models');
 
     try {
+        // fill username email and password
+        if (!req.body.username || !req.body.password || !req.body.email) {
+            return res.status(400).send('Username, Password, and Email are required.');
+        }
+
         // Check password length
         if (req.body.password.length < 8) {
             return res.status(400).send('Password is too short; minimum 8 characters required.');
@@ -27,6 +32,29 @@ app.post('/register', (req, res) => {
         // check username length
         if (req.body.username.length < 3 || req.body.username.length > 255) {
             return res.status(400).send('Username must be between 3 to 255 characters.');
+        }
+
+        // email validation
+        const userEmail = await users.findOne({
+            where: {
+                email: req.body.email,
+            }
+        });
+
+        if (userEmail) {
+            return res.status(409).send({
+                isEmail: false
+            });
+        }
+
+        const userUsername = await users.findOne({
+            where: {
+                username: req.body.username,
+            }
+        });
+
+        if (userUsername) {
+            return res.status(409).send('Username is already taken');
         }
 
         const token = uuid.v1();
@@ -38,7 +66,7 @@ app.post('/register', (req, res) => {
             token: token
         });
 
-        const htmlBody = `<b>To verify your account: <a href="http://localhost:8080/verify/token/${token}">Link</a></b>`;
+        const htmlBody = `<b>To verify your account: <a href="http://localhost:3000/verify/token/${token}">Link</a></b>`;
         sendMail(req.body.email, 'Your verify link', htmlBody);
 
         return res.status(201).send('Please check your email confirmation...');
@@ -58,8 +86,12 @@ app.get('/verify/token/:token', async (req, res) => {
                 token: req.params.token
             }
         });
+
         if (userV == null) {
-            return res.send('Your link is Expired...');
+            return res.send({
+                isValid: false,
+                messege: "Link is Expired..."
+            });
         }
 
         const token = uuid.v1();
@@ -74,7 +106,11 @@ app.get('/verify/token/:token', async (req, res) => {
                     id: userV.id
                 }
             });
-        return res.status(201).send('You are verified...');
+        return res.status(201).send({
+            isValid: true,
+            messege: "Link is verify..."
+        });
+
     } catch (e) {
         console.log(e);
         return res.status(500).send('Lagata hai sever me error hai...');
@@ -85,6 +121,10 @@ app.get('/verify/token/:token', async (req, res) => {
 // LOGIN API
 app.post('/login', async (req, res) => {
     const { users } = require('./models');
+
+    if ((typeof (req.body.username) === 'undefined') || (typeof (req.body.password) === 'undefined')) {
+        return res.status(400).send('Pls fill the fild...')
+    }
 
     const userL = await users.findOne({
         where: {
@@ -106,7 +146,7 @@ app.post('/login', async (req, res) => {
     if (check) {
         const token = jwt.sign({ uuid: userL.uuid }, 'ASXCVBNMPOJHGCXZWERTYUUHJBLKJHGED'); // jsonwebtoken
 
-        res.cookie('X-Access-Token', token, { maxAge: 7776000000, signed: true, path: '/', httpOnly: true }); // cookies
+        res.cookie('X-Access-Token', token, { maxAge: 7776000000, signed: true, path: '/', secure: true, httpOnly: true }); // cookies
 
         return res.status(201).send({ "X-Access-Token": token, });
     } else {
@@ -114,7 +154,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-
+// RESET PASSWORD REQUEST MAIL
 app.post('/reset/request', async (req, res) => {
     const { users } = require('./models');
 
@@ -142,13 +182,37 @@ app.post('/reset/request', async (req, res) => {
                 }
             });
 
-        // password reset link
-        const resetLink = `<b>To resete your password: <a href="http://localhost:8080/reset/request/${token}">Link</a></b>`;
+        const resetLink = `http://localhost:3000/reset/password/${token}"`;
         sendMail(resetlink.email, 'Your Reset link', resetLink);
 
         res.status(200).send('Password reset link sent successfully.');
 
     } catch (e) {
+        console.log(e);
+        return res.status(500).send('Lagata hai sever me error hai...');
+    }
+});
+
+app.get('/resetlink/verify/:token', async (req, res) => {
+    const { users } = require('./models');
+
+    try {
+        const userF = await users.findOne({
+            where: {
+                token: req.params.token
+            }
+        });
+
+        if (!userF) {
+            return res.status(404).send({
+                isValid: false,
+                messege: "Link is Expired"
+            });
+        }
+
+        return res.status(201).send('Reset link is valid.');
+
+    } catch (error) {
         console.log(e);
         return res.status(500).send('Lagata hai sever me error hai...');
     }
@@ -163,7 +227,7 @@ app.post('/reset/password/:token', async (req, res) => {
             return res.send('Pls fill the password fild...')
         }
 
-        if (req.body.password1.length < 8 || req.body.password2.length < 8 ) {
+        if (req.body.password1.length < 8 || req.body.password2.length < 8) {
             return res.status(400).send('Password is too short; minimum 8 characters required.');
         }
 
@@ -171,14 +235,16 @@ app.post('/reset/password/:token', async (req, res) => {
             return res.send('Your password do not match...');
         }
 
+        const resetToken = req.params.token;
+
         const userU = await users.findOne({
             where: {
-                token: req.params.token
+                token: resetToken
             }
         });
 
         if (!userU) {
-            return res.status(404).send('This link has expired...');
+            return res.status(404).send('This link has expired or is invalid.');
         }
 
         const token = uuid.v1();
@@ -206,6 +272,7 @@ app.post('/reset/password/:token', async (req, res) => {
         return res.status(500).send('Lagata hai sever me error hai...');
     }
 });
+
 
 
 app.listen(8080, () => console.log('connected...'));

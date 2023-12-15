@@ -11,13 +11,17 @@ const email = nodemailer.createTransport({
 });
 
 const sendMail = async (to, subject, html) => {
-    info = await email.sendMail({
-        from: 'info@livefilmnews.com',
-        to: to,
-        subject: subject,
-        html: html,
-    });
-    console.log(info);
-}
+    try {
+        const info = await email.sendMail({
+            from: 'info@livefilmnews.com',
+            to: to,
+            subject: subject,
+            html: html,
+        });
+        console.log(info);
+    } catch (e) {
+        console.log(e);
+    }
+};
 
 module.exports = sendMail;
