@@ -66,7 +66,7 @@ app.post('/register', async (req, res) => {
             token: token
         });
 
-        const htmlBody = `<b>To verify your account: <a href="http://localhost:3000/verify/token/${token}">Link</a></b>`;
+        const htmlBody = `<b>To verify your account: <a href="http://localhost:3000/verify/login/${token}">Link</a></b>`;
         sendMail(req.body.email, 'Your verify link', htmlBody);
 
         return res.status(201).send('Please check your email confirmation...');
@@ -77,7 +77,7 @@ app.post('/register', async (req, res) => {
     }
 });
 
-app.get('/verify/token/:token', async (req, res) => {
+app.get('/verify/login/:token', async (req, res) => {
     const { users } = require('./models');
 
     try {
@@ -89,8 +89,7 @@ app.get('/verify/token/:token', async (req, res) => {
 
         if (userV == null) {
             return res.send({
-                isValid: false,
-                messege: "Link is Expired..."
+                isValid: false, // Link is Expired...
             });
         }
 
@@ -107,8 +106,7 @@ app.get('/verify/token/:token', async (req, res) => {
                 }
             });
         return res.status(201).send({
-            isValid: true,
-            messege: "Link is verify..."
+            isValid: true, // Link is verify...
         });
 
     } catch (e) {
